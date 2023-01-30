@@ -1,8 +1,15 @@
 #include <Arduino.h>
+#include "i2c-multi.h"
 #include <Wire.h>
 #include <i2cEncoderLibV2.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <WiFi.h> 
+#include <ArduinoWebsockets.h>
+// #include <Fonts/FreeSans12pt7b.h>
+#include <mdns-service.h>
+#include <encoder-defines.h>
+#include <encoder.h>
 
 /*In this example there are 9 I2C Encoder V2 boards with the RGB LED connected in a matrix 3x3
   There is also the Arduino Serial KeyPad Shield attached.
@@ -25,9 +32,27 @@
     Yellow for SCL
 */
 
-#define ENCODER_N 2 //Number limit of the encoder
+
+#define NUM_ENCODERS 2 // Number of encoders
+
+i2cEncoderLibV2 RGBEncoder[NUM_ENCODERS] = { i2cEncoderLibV2(ENC_0_ADDRESS),
+                                             i2cEncoderLibV2(ENC_1_ADDRESS) };
+const String encoderNames[NUM_ENCODERS] = { ENC_0_NAME, 
+                                            ENC_1_NAME };
+const bool encoderConfirm[NUM_ENCODERS] = { ENC_0_CONFIRM, 
+                                            ENC_1_CONFIRM };
+
 
 const int IntPin = A3; // INT pins, change according to your board
+
+const char* ssid = "***REMOVED***"; //Enter SSID
+const char* password = "***REMOVED***"; //Enter Password
+const char* websockets_server_host = "192.168.178.71"; //Enter server adress
+const uint16_t websockets_server_port = 8080; // Enter server port
+
+using namespace websockets;
+
+WebsocketsClient client;
 
 //Class initialization with the I2C addresses
 // i2cEncoderLibV2 RGBEncoder[ENCODER_N] = { i2cEncoderLibV2(0x40),
@@ -35,8 +60,6 @@ const int IntPin = A3; // INT pins, change according to your board
 //                                           i2cEncoderLibV2(0x50), i2cEncoderLibV2(0x30), i2cEncoderLibV2(0x70),
 //                                           i2cEncoderLibV2(0x04), i2cEncoderLibV2(0x44),
 // };
-i2cEncoderLibV2 RGBEncoder[ENCODER_N] = { i2cEncoderLibV2(0x24), i2cEncoderLibV2(0x60)
-};
 
 uint8_t encoder_status, i;
 
@@ -46,51 +69,19 @@ uint8_t encoder_status, i;
 #define SCREEN_ADDRESS 0x3D ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-void testdrawchar(void);
-
-void encoder_rotated(i2cEncoderLibV2* obj) {
-    if (obj->readStatus(i2cEncoderLibV2::RINC))
-        Serial.print("Increment ");
-    else
-        Serial.print("Decrement ");
-    Serial.print(obj->id);
-    Serial.print(": ");
-    Serial.println(obj->readCounterInt());
-    obj->writeRGBCode(0x00FF00);
-}
-
-void encoder_click(i2cEncoderLibV2* obj) {
-    Serial.print("Push: ");
-    Serial.println(obj->id);
-    obj->writeRGBCode(0x0000FF);
-}
-
-void encoder_thresholds(i2cEncoderLibV2* obj) {
-    if (obj->readStatus(i2cEncoderLibV2::RMAX))
-        Serial.print("Max: ");
-    else
-        Serial.print("Min: ");
-    Serial.println(obj->id);
-    obj->writeRGBCode(0xFF0000);
-}
-
-void encoder_fade(i2cEncoderLibV2* obj) {
-    obj->writeRGBCode(0x000000);
-}
-
 void setup(void) {
     uint8_t enc_cnt;
 
     Wire.begin();
     //Reset of all the encoder ìs
-    for (enc_cnt = 0; enc_cnt < ENCODER_N; enc_cnt++) {
+    for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
         RGBEncoder[enc_cnt].reset();
     }
 
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
         Serial.println(F("SSD1306 allocation failed"));
-        for (;;); // Don't proceed, loop forever
+        // for (;;); // Don't proceed, loop forever
     }
 
     display.display();
@@ -98,20 +89,19 @@ void setup(void) {
     pinMode(IntPin, INPUT);
 
     Serial.begin(115200);
-    Serial.print("Encoder Test!!\n");
+
+    // start_mdns_service();
 
     // Initialization of the encoders
-    for (enc_cnt = 0; enc_cnt < ENCODER_N; enc_cnt++) {
+    for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
         RGBEncoder[enc_cnt].begin(
-            i2cEncoderLibV2::INT_DATA | i2cEncoderLibV2::WRAP_DISABLE
+            i2cEncoderLibV2::INT_DATA
+            | i2cEncoderLibV2::WRAP_DISABLE
             | i2cEncoderLibV2::DIRE_RIGHT
             | i2cEncoderLibV2::IPUP_ENABLE
             | i2cEncoderLibV2::RMOD_X1
             | i2cEncoderLibV2::RGB_ENCODER);
-        RGBEncoder[enc_cnt].writeCounter((int32_t)0); //Reset of the CVAL register
-        RGBEncoder[enc_cnt].writeMax((int32_t)50); //Set the maximum threshold to 50
-        RGBEncoder[enc_cnt].writeMin((int32_t)0); //Set the minimum threshold to 0
-        RGBEncoder[enc_cnt].writeStep((int32_t)1); //The step at every encoder click is 1
+        RGBEncoder[enc_cnt].id = enc_cnt;
         RGBEncoder[enc_cnt].writeRGBCode(0);
         RGBEncoder[enc_cnt].writeFadeRGB(3); //Fade enabled with 3ms step
         RGBEncoder[enc_cnt].writeAntibouncingPeriod(25); //250ms of debouncing
@@ -125,12 +115,20 @@ void setup(void) {
 
         /* Enable the I2C Encoder V2 interrupts according to the previus attached callback */
         RGBEncoder[enc_cnt].autoconfigInterrupt();
-        RGBEncoder[enc_cnt].id = enc_cnt;
     }
     
-    delay(2000);
-    testdrawchar();      // Draw characters of the default font
+    RGBEncoder[ENC_0_ID].writeCounter((int32_t)ENC_0_DEFAULT);
+    RGBEncoder[ENC_0_ID].writeMax((int32_t)ENC_0_MAX);
+    RGBEncoder[ENC_0_ID].writeMin((int32_t)ENC_0_MIN);
+    RGBEncoder[ENC_0_ID].writeStep((int32_t)ENC_0_STEP);
 
+    RGBEncoder[ENC_1_ID].writeCounter((int32_t)ENC_1_DEFAULT);
+    RGBEncoder[ENC_1_ID].writeMax((int32_t)ENC_1_MAX);
+    RGBEncoder[ENC_1_ID].writeMin((int32_t)ENC_1_MIN);
+    RGBEncoder[ENC_1_ID].writeStep((int32_t)ENC_1_STEP);
+
+    // delay(1000);
+    // testdrawchar();
 }
 
 void loop() {
@@ -138,7 +136,7 @@ void loop() {
 
     if (digitalRead(IntPin) == LOW) {
         //Interrupt from the encoders, start to scan the encoder matrix
-        for (enc_cnt = 0; enc_cnt < ENCODER_N; enc_cnt++) {
+        for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
             if (digitalRead(IntPin) == HIGH) { //If the interrupt pin return high, exit from the encoder scan
                 break;
             }
@@ -147,10 +145,46 @@ void loop() {
     }
 }
 
+void displayParameter(int id, int value) {
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE); // Draw white text
+    display.cp437(true);         // Use full 256 char 'Code Page 437' font
+    // display.setFont(&FreeMonoBoldOblique12pt7b);
+    display.setTextSize(2);
+    String label = encoderNames[id];
+    drawCentreString(label, 0);
+
+    if( encoderConfirm[id]) {
+        display.setTextSize(4);
+        drawCentreString(String(value), 22);
+        display.setTextSize(1);
+        drawCentreString("Click to confirm", 56);
+    } else {
+        display.setTextSize(4);
+        drawCentreString(String(value), 28);
+    }
+    display.display();
+
+    Serial.print(encoderNames[id]);
+    Serial.print(": ");
+    Serial.println(value);
+}
+
+
+void drawCentreString(const String &buf, int y)
+{
+    int16_t x1, y1, x;
+    uint16_t w, h;
+    display.getTextBounds(buf, x, y, &x1, &y1, &w, &h); //calc width of new string
+    // display.setCursor(x - w / 2, y);
+    display.setCursor((SCREEN_WIDTH - w) / 2, y);
+
+    display.println(buf);
+}
+
 
 void testdrawchar(void) {
   display.clearDisplay();
-
   display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(0, 0);     // Start at top-left corner
