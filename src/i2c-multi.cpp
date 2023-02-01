@@ -68,6 +68,8 @@ WebsocketsClient client;
 void onMessageCallback(WebsocketsMessage message);
 void onEventsCallback(WebsocketsEvent event, String data);
 
+QRCode qrCode;
+
 void setup(void) {
     uint8_t enc_cnt;
 
@@ -133,7 +135,18 @@ void setup(void) {
     // delay(1000);
     // testdrawchar();
     WiFi.begin(ssid, password);
-        
+
+    // String myApUrl = String("WIFI:S:") + RB_WIFI_AP + ";T:nopass;P:;;";
+    // drawQrCode(myApUrl.c_str(), MESSAGE_CONFIGURE_WIFI);
+    // boolean configuredWifi = wifiManager.autoConnect(RB_WIFI_AP);
+
+    // if( !configuredWifi ) {
+    //     Serial.println("Wifi Manager Failed!");
+    //     display.println("Wifi Manager Failed!");
+    //     display.display();
+    //     for (;;);
+    // }
+
     Serial.print("Connecting to WiFi...");
     display.println("Connecting WiFi: ");
     display.display();
@@ -235,6 +248,43 @@ void testdrawchar(void) {
 
   display.display();
   delay(2000);
+}
+
+void drawQrCode(const char* qrStr, const char* lines[]) {
+	uint8_t qrcodeData[qrcode_getBufferSize(3)];
+	qrcode_initText(&qrCode, qrcodeData, 3, ECC_LOW, qrStr);
+ 
+  display.clearDisplay();
+  Serial.println("Updating OLED display");
+
+  // Text starting point
+  int cursor_start_y = 10;
+  int cursor_start_x = 4;
+  int font_height = 12;
+
+	// QR Code Starting Point
+  int offset_x = 62;
+  int offset_y = 3;
+
+  for (int y = 0; y < qrCode.size; y++) {
+      for (int x = 0; x < qrCode.size; x++) {
+          int newX = offset_x + (x * 2);
+          int newY = offset_y + (y * 2);
+
+          if (qrcode_getModule(&qrCode, x, y)) {
+							display.fillRect( newX, newY, 2, 2, 0);
+          }
+          else {
+							display.fillRect( newX, newY, 2, 2, 1);
+          }
+      }
+  }
+  display.setTextColor(1,0);
+  for (int i = 0; i < 4; i++) {
+    display.setCursor(cursor_start_x,cursor_start_y+font_height*i);
+    display.println(lines[i]);
+  }
+  display.display();
 }
 
 //////////////////////// WEBSOCKETS ////////////////////////////////
