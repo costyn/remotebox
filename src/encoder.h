@@ -7,6 +7,7 @@ void encoder_rotated(i2cEncoderLibV2* obj) {
     // else
     //     Serial.print("Decrement ");
     displayParameter(obj->id, obj->readCounterInt());
+    sendParameter(obj->id, obj->readCounterInt());
     obj->writeRGBCode(0x00FF00);
 }
 

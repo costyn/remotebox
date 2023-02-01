@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <mdns.h>
+#include <ESPmDNS.h>
 
 void start_mdns_service()
 {
