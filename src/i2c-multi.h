@@ -12,16 +12,23 @@
 
 // void start_mdns_service();
 
+typedef enum {
+    ROTATE,
+    LIMIT,
+    CLICK
+} EncoderEvent;
+
 void testdrawchar(void);
 void displayParameter(int text, int number);
 void drawCentreString(const String &buf, int y);
-void sendParameter(int id, int value);
+void sendParameter(int id, int value, boolean onClick);
 std::string timeToString();
 void handleJson(std::string jsonString);
 void setPreset(int presetIndex);
 void setBrightness(int brightness);
 void drawQrCode(const char* qrStr, const char* lines[]);
-
+void OnWiFiEvent(WiFiEvent_t event);
+void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event);
 
 #define RB_WIFI_AP "RemoteBox Setup"
 

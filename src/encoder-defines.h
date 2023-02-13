@@ -25,3 +25,4 @@ const String encoderNames[NUM_ENCODERS] = { ENC_BRIGHTNESS_NAME,
                                             ENC_PRESET_NAME };
 const bool encoderConfirm[NUM_ENCODERS] = { ENC_BRIGHTNESS_CONFIRM, 
                                             ENC_PRESET_CONFIRM };
+

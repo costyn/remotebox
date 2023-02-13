@@ -6,6 +6,7 @@
 
 /////////// TODO
 ///// WifiManager
+///// TaskScheduler
 
 /*In this example there are 9 I2C Encoder V2 boards with the RGB LED connected in a matrix 3x3
   There is also the Arduino Serial KeyPad Shield attached.
@@ -42,7 +43,7 @@ i2cEncoderLibV2 RGBEncoder[NUM_ENCODERS] = { i2cEncoderLibV2(ENC_BRIGHTNESS_ADDR
 
 
 const int IntPin = A3; // INT pins, change according to your board
-uint8_t encoder_status, i;
+uint8_t _lastEncoderInput;
 
 /////////////////// DISPLAY STUFF /////////////////////
 
@@ -58,8 +59,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 IPAddress serverIp;
 
 // https://github.com/gilmaimon/ArduinoWebsockets
-const char* ssid = "***REMOVED***"; //Enter SSID
-const char* password = "***REMOVED***"; //Enter Password
+const char* ssid = ""; //Enter SSID
+const char* password = ""; //Enter Password
+String _url = "";
 const uint16_t websockets_server_port = 80; // Enter server port
 const char* websockets_server_path = "/ws"; // Websocket path
 
@@ -69,6 +71,8 @@ void onMessageCallback(WebsocketsMessage message);
 void onEventsCallback(WebsocketsEvent event, String data);
 
 QRCode qrCode;
+
+///////////////////////////// SETUP ///////////////////////////////////////
 
 void setup(void) {
     uint8_t enc_cnt;
@@ -158,6 +162,8 @@ void setup(void) {
     display.println();
     display.display();
 
+    WiFi.onEvent(OnWiFiEvent);
+
     start_mdns_service();
 
     Serial.print("Resolving host Lumifera: ");
@@ -168,15 +174,18 @@ void setup(void) {
         serverIp = MDNS.queryHost("Lumifera");
     }	
     Serial.println(serverIp.toString());
-    display.println(serverIp.toString());
+    display.println(" " + serverIp.toString());
+    display.println();
     display.display();
-    String url = "ws://" + serverIp.toString() + ":" + websockets_server_port + websockets_server_path;
-    Serial.println(url);
+    _url = "ws://" + serverIp.toString() + ":" + websockets_server_port + websockets_server_path;
+    Serial.println(_url);
 
     client.onMessage(onMessageCallback);
     client.onEvent(onEventsCallback);
-    client.connect(url);
+    client.connect(_url);
 }
+
+/////////////////////// LOOP /////////////////////////////
 
 void loop() {
     uint8_t enc_cnt;
@@ -193,7 +202,12 @@ void loop() {
     client.poll();
 }
 
+////////////////// OLED DISPLAY //////////////////////////////
+
 void displayParameter(int id, int value) {
+    if (!client.available()) {
+        return;
+    }
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE); // Draw white text
     display.cp437(true);         // Use full 256 char 'Code Page 437' font
@@ -218,8 +232,6 @@ void displayParameter(int id, int value) {
     Serial.print(": ");
     Serial.println(value);
 }
-
-
 
 void drawCentreString(const String &buf, int y)
 {
@@ -289,10 +301,15 @@ void drawQrCode(const char* qrStr, const char* lines[]) {
 
 //////////////////////// WEBSOCKETS ////////////////////////////////
 
-void sendParameter(int id, int value) {
-    String json = "{" + encoderNames[id] + ": " + value + "}\n";
-    Serial.println(json);
-    client.send(json);
+void sendParameter(int id, int value, boolean onClick) {
+    if (!client.available()) {
+        return;
+    }
+    if (id == ENC_BRIGHTNESS_ID || onClick) {
+        String json = "{" + encoderNames[id] + ": " + value + "}\n";
+        Serial.println(json);
+        client.send(json);
+    }
 }
 
 using namespace websockets;
@@ -304,10 +321,14 @@ void onMessageCallback(WebsocketsMessage message) {
 
 using namespace websockets;
 void onEventsCallback(WebsocketsEvent event, String data) {
-    if(event == WebsocketsEvent::ConnectionOpened) {
+    Serial.println("websocket event");
+    
+    if (event == WebsocketsEvent::ConnectionOpened) {
         Serial.println("Websocket: Connnection Opened");
-        display.println("Websocket: Connected!");
+        display.println("Websocket: ");
+        display.println(" Connected!");
         display.println();
+        display.println("You may begin!");
         display.display();
     }
     else if (event == WebsocketsEvent::ConnectionClosed) {
@@ -317,7 +338,9 @@ void onEventsCallback(WebsocketsEvent event, String data) {
         display.println("Websocket: Closed");
         display.println();
         display.display();
-    } else if(event == WebsocketsEvent::GotPing) {
+        client.connect(_url);
+    }
+    else if (event == WebsocketsEvent::GotPing) {
         Serial.println("Got a Ping!");
     } else if(event == WebsocketsEvent::GotPong) {
         Serial.println("Got a Pong!");
@@ -346,6 +369,46 @@ void handleJson(std::string jsonString) {
   }
 }
 
+///////////////////////// WIFI STUFF //////////////////////////////
+
+void OnWiFiEvent(WiFiEvent_t event)
+{
+  constexpr const char* SGN = "OnWiFiEvent()";
+  String myURL;
+
+  switch (event) {
+ 
+    // SYSTEM_EVENT_STA_CONNECTED: ESP32 working as station connected to a WiFi network:
+    case SYSTEM_EVENT_STA_CONNECTED:
+      Serial.printf("%s: %s: SYSTEM_EVENT_STA_CONNECTED: ESP32 Connected to WiFi Network\n", timeToString().c_str(), SGN);
+      myURL = "http://" + WiFi.localIP().toString();
+      // drawQrCode(myURL.c_str(),MESSAGE_OPEN_WEBAPP);
+      break;
+
+    // SYSTEM_EVENT_AP_START: ESP32 soft AP started;
+    case SYSTEM_EVENT_AP_START:
+      Serial.printf("%s: %s: SYSTEM_EVENT_AP_START: ESP32 soft AP started\n", timeToString().c_str(), SGN);
+      drawQrCode("WIFI:S:Lumifera;T:nopass;P:;;",MESSAGE_JOIN_SOFT_AP);
+      break;
+
+    // SYSTEM_EVENT_AP_STACONNECTED: station connected to the ESP32 soft AP;
+    case SYSTEM_EVENT_AP_STACONNECTED:
+      Serial.printf("%s: %s: SYSTEM_EVENT_AP_STACONNECTED: Station connected to ESP32 soft AP\n", timeToString().c_str(), SGN);
+      myURL = "http://192.168.4.1"; // hard coded; WiFi.getIP.toString doesnt work.
+      drawQrCode(myURL.c_str(),MESSAGE_OPEN_WEBAPP);
+      break;
+
+    // SYSTEM_EVENT_AP_STADISCONNECTED: station disconnected to the ESP32 soft AP:
+    case SYSTEM_EVENT_AP_STADISCONNECTED:
+      Serial.printf("%s: %s: SYSTEM_EVENT_AP_STADISCONNECTED: Station disconnected from ESP32 soft AP\n", timeToString().c_str(), SGN);
+      drawQrCode("WIFI:S:Lumifera;T:nopass;P:;;",MESSAGE_JOIN_SOFT_AP);
+      break;
+
+    default: break;
+  }
+}
+
+///////////////////////////// MISC UTIL ///////////////////////////////////
 
 std::string timeToString()
 {
@@ -363,10 +426,31 @@ std::string timeToString()
   return std::string(myString);
 }
 
+/////////////////////////////////////// ENCODERS ///////////////////////////
+
 void setPreset(int presetIndex){
      RGBEncoder[ENC_PRESET_ID].writeCounter((int32_t)presetIndex);   
 }
 
 void setBrightness(int brightness){
      RGBEncoder[ENC_BRIGHTNESS_ID].writeCounter((int32_t)brightness);   
+}
+
+
+void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event) {
+    _lastEncoderInput = obj->id; // not really the right place to put it
+    if (client.available()) {
+        if (event == ROTATE) {
+            obj->writeRGBCode(0x00FF00);
+        }
+        if (event == CLICK) {
+            obj->writeRGBCode(0x0000FF);
+        }
+        if (event == LIMIT) {
+            obj->writeRGBCode(0xFF0000);
+        }
+    }
+    else {
+        obj->writeRGBCode(0x4c00b0); // purple
+    }
 }
