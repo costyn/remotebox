@@ -18,14 +18,7 @@
 ///// TaskScheduler
 
 
-const int IntPin = A3; // INT pins, change according to your board
-uint8_t _lastEncoderInput;
-
-
 ///////////////////// NETWORK STUFF ///////////////////////
-
-// https://techtutorialsx.com/2021/dddd10/29/esp32-mdns-host-name-resolution/
-IPAddress serverIp;
 
 // https://github.com/gilmaimon/ArduinoWebsockets
 const char* ssid = ""; //Enter SSID
@@ -43,67 +36,15 @@ void onEventsCallback(WebsocketsEvent event, String data);
 ///////////////////////////// SETUP ///////////////////////////////////////
 
 void setup(void) {
-    uint8_t enc_cnt;
-
-    Wire.begin();
-    //Reset of all the encoder ìs
-    for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
-        RGBEncoder[enc_cnt].reset();
-    }
-
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-        Serial.println(F("SSD1306 allocation failed"));
-        // for (;;); // Don't proceed, loop forever
-    }
-
-    display.display();
-
-    pinMode(IntPin, INPUT);
 
     Serial.begin(115200);
-
-    // Initialization of the encoders
-    for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
-        RGBEncoder[enc_cnt].begin(
-            i2cEncoderLibV2::INT_DATA
-            | i2cEncoderLibV2::WRAP_DISABLE
-            | i2cEncoderLibV2::DIRE_RIGHT
-            | i2cEncoderLibV2::IPUP_ENABLE
-            | i2cEncoderLibV2::RMOD_X1
-            | i2cEncoderLibV2::RGB_ENCODER);
-        RGBEncoder[enc_cnt].id = enc_cnt;
-        RGBEncoder[enc_cnt].writeRGBCode(0);
-        RGBEncoder[enc_cnt].writeFadeRGB(3); //Fade enabled with 3ms step
-        RGBEncoder[enc_cnt].writeAntibouncingPeriod(25); //250ms of debouncing
-        RGBEncoder[enc_cnt].writeDoublePushPeriod(0); //Set the double push period to 500ms
-
-        /* Configure the events */
-        RGBEncoder[enc_cnt].onChange = encoder_rotated;
-        RGBEncoder[enc_cnt].onButtonRelease = encoder_click;
-        RGBEncoder[enc_cnt].onMinMax = encoder_thresholds;
-        RGBEncoder[enc_cnt].onFadeProcess = encoder_fade;
-
-        /* Enable the I2C Encoder V2 interrupts according to the previus attached callback */
-        RGBEncoder[enc_cnt].autoconfigInterrupt();
-    }
     
-    RGBEncoder[ENC_BRIGHTNESS_ID].writeCounter((int32_t)ENC_BRIGHTNESS_DEFAULT);
-    RGBEncoder[ENC_BRIGHTNESS_ID].writeMax((int32_t)ENC_BRIGHTNESS_MAX);
-    RGBEncoder[ENC_BRIGHTNESS_ID].writeMin((int32_t)ENC_BRIGHTNESS_MIN);
-    RGBEncoder[ENC_BRIGHTNESS_ID].writeStep((int32_t)ENC_BRIGHTNESS_STEP);
+    Wire.begin();
 
-    RGBEncoder[ENC_PRESET_ID].writeCounter((int32_t)ENC_PRESET_DEFAULT);
-    RGBEncoder[ENC_PRESET_ID].writeMax((int32_t)ENC_PRESET_MAX);
-    RGBEncoder[ENC_PRESET_ID].writeMin((int32_t)ENC_PRESET_MIN);
-    RGBEncoder[ENC_PRESET_ID].writeStep((int32_t)ENC_PRESET_STEP);
+    encoderSetup();
 
-    display.clearDisplay();
-    display.setTextColor(SSD1306_WHITE); // Draw white text
-    display.cp437(true);         // Use full 256 char 'Code Page 437' font
-    // display.setFont(&FreeMonoBoldOblique12pt7b);
-    display.setTextSize(1);
-
+    oledSetup();
+    
     // delay(1000);
     // testdrawchar();
     WiFi.begin(ssid, password);
@@ -137,10 +78,9 @@ void setup(void) {
     Serial.print("Resolving host Lumifera: ");
     display.println("Resolving Lumifera: ");
     display.display();
-    while (serverIp.toString() == "0.0.0.0") {
-        delay(250);
-        serverIp = MDNS.queryHost("Lumifera");
-    }	
+
+    resolveLumi();
+    
     Serial.println(serverIp.toString());
     display.println(" " + serverIp.toString());
     display.println();

@@ -45,6 +45,10 @@ const bool encoderConfirm[NUM_ENCODERS] = { ENC_BRIGHTNESS_CONFIRM,
 static i2cEncoderLibV2 RGBEncoder[NUM_ENCODERS] = { i2cEncoderLibV2(ENC_BRIGHTNESS_ADDRESS),
                                              i2cEncoderLibV2(ENC_PRESET_ADDRESS) };
 
+const int IntPin = A3; // INT pins, change according to your board
+
+void encoderSetup();
+
 void encoder_rotated(i2cEncoderLibV2* obj);
 void encoder_click(i2cEncoderLibV2* obj);
 void encoder_thresholds(i2cEncoderLibV2* obj);
@@ -53,7 +57,6 @@ void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event);
 
 ///////////// EXTERNS /////////////////////
 void displayParameter(String encoderName, int value, boolean confirmWithClick);
-extern uint8_t _lastEncoderInput;
 extern websockets::WebsocketsClient client;
 
 #endif

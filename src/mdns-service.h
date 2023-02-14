@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include <ESPmDNS.h>
 
+// https://techtutorialsx.com/2021/dddd10/29/esp32-mdns-host-name-resolution/
+IPAddress serverIp;
+
 void start_mdns_service()
 {
     //initialize mDNS service
@@ -13,6 +16,13 @@ void start_mdns_service()
         return;
     }
 
+}
+
+void resolveLumi() {
+    while (serverIp.toString() == "0.0.0.0") {
+        delay(250);
+        serverIp = MDNS.queryHost("Lumifera");
+    }
 }
 
 #endif

@@ -44,6 +44,7 @@ const unsigned char icon_link_off [] PROGMEM = {
 
 ////////// Function Prototypes ////////////////////////
 
+void oledSetup();
 void drawCentreString(const String& buf, int y);
 void testdrawchar(void);
 void displayParameter(String encoderName, int value, boolean confirmWithClick);

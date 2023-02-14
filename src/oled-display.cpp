@@ -1,5 +1,25 @@
 #include "oled-display.h"
 
+////////////////// OLED SETUP //////////////////////////////
+
+void oledSetup() {
+    
+    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+    if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+        Serial.println(F("SSD1306 allocation failed"));
+        // for (;;); // Don't proceed, loop forever
+    }
+
+    display.display();
+
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE); // Draw white text
+    display.cp437(true);         // Use full 256 char 'Code Page 437' font
+    // display.setFont(&FreeMonoBoldOblique12pt7b);
+    display.setTextSize(1);
+}
+
+
 ////////////////// OLED DISPLAY //////////////////////////////
 
 void displayParameter(String encoderName, int value, boolean confirmWithClick) {

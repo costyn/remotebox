@@ -15,6 +15,52 @@
 */
 
 
+void encoderSetup() {
+    uint8_t enc_cnt;
+
+    pinMode(IntPin, INPUT);
+    
+    //Reset of all the encoder ìs
+    for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
+        RGBEncoder[enc_cnt].reset();
+    }
+
+    for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
+        RGBEncoder[enc_cnt].begin(
+            i2cEncoderLibV2::INT_DATA
+            | i2cEncoderLibV2::WRAP_DISABLE
+            | i2cEncoderLibV2::DIRE_RIGHT
+            | i2cEncoderLibV2::IPUP_ENABLE
+            | i2cEncoderLibV2::RMOD_X1
+            | i2cEncoderLibV2::RGB_ENCODER);
+        RGBEncoder[enc_cnt].id = enc_cnt;
+        RGBEncoder[enc_cnt].writeRGBCode(0);
+        RGBEncoder[enc_cnt].writeFadeRGB(3); //Fade enabled with 3ms step
+        RGBEncoder[enc_cnt].writeAntibouncingPeriod(25); //250ms of debouncing
+        RGBEncoder[enc_cnt].writeDoublePushPeriod(0); //Set the double push period to 500ms
+
+        /* Configure the events */
+        RGBEncoder[enc_cnt].onChange = encoder_rotated;
+        RGBEncoder[enc_cnt].onButtonRelease = encoder_click;
+        RGBEncoder[enc_cnt].onMinMax = encoder_thresholds;
+        RGBEncoder[enc_cnt].onFadeProcess = encoder_fade;
+
+        /* Enable the I2C Encoder V2 interrupts according to the previus attached callback */
+        RGBEncoder[enc_cnt].autoconfigInterrupt();
+    }
+    
+    RGBEncoder[ENC_BRIGHTNESS_ID].writeCounter((int32_t)ENC_BRIGHTNESS_DEFAULT);
+    RGBEncoder[ENC_BRIGHTNESS_ID].writeMax((int32_t)ENC_BRIGHTNESS_MAX);
+    RGBEncoder[ENC_BRIGHTNESS_ID].writeMin((int32_t)ENC_BRIGHTNESS_MIN);
+    RGBEncoder[ENC_BRIGHTNESS_ID].writeStep((int32_t)ENC_BRIGHTNESS_STEP);
+
+    RGBEncoder[ENC_PRESET_ID].writeCounter((int32_t)ENC_PRESET_DEFAULT);
+    RGBEncoder[ENC_PRESET_ID].writeMax((int32_t)ENC_PRESET_MAX);
+    RGBEncoder[ENC_PRESET_ID].writeMin((int32_t)ENC_PRESET_MIN);
+    RGBEncoder[ENC_PRESET_ID].writeStep((int32_t)ENC_PRESET_STEP);
+}
+
+
 void encoder_rotated(i2cEncoderLibV2* obj) {
     encoderColorFeedback(obj, ROTATE);
     // if (obj->readStatus(i2cEncoderLibV2::RINC))
@@ -47,7 +93,6 @@ void encoder_fade(i2cEncoderLibV2* obj) {
 }
 
 void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event) {
-    _lastEncoderInput = obj->id; // not really the right place to put it
     if (client.available()) {
         if (event == ROTATE) {
             obj->writeRGBCode(0x00FF00);
