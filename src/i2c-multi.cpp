@@ -1,57 +1,26 @@
 #include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <WiFi.h> 
+#include <ArduinoWebsockets.h>
+#include <ArduinoJson.h>
+// #include <Fonts/FreeSans12pt7b.h>
+#include <qrcode.h>
+
 #include "i2c-multi.h"
 #include "mdns-service.h"
-#include "encoder-defines.h"
-#include "encoder.h"
+#include "encoders.h"
+#include "oled-display.h"
 
 /////////// TODO
 ///// WifiManager
 ///// TaskScheduler
 
-/*In this example there are 9 I2C Encoder V2 boards with the RGB LED connected in a matrix 3x3
-  There is also the Arduino Serial KeyPad Shield attached.
-
-  Every time of one encoder is moved it's value is showed on the display
-  In this example the data type are float
-
-  Connections with Arduino UNO:
-  - -> GND
-  + -> 5V
-  SDA -> A4
-  SCL -> A5
-  INT -> A3
-
-    For the STEMMA QT cables, we follow the Qwiic convention:
-
-    Black for GND
-    Red for V+
-    Blue for SDA
-    Yellow for SCL
-*/
-
-///////////////// ENCODER STUFF /////////////////////////
-
-i2cEncoderLibV2 RGBEncoder[NUM_ENCODERS] = { i2cEncoderLibV2(ENC_BRIGHTNESS_ADDRESS),
-                                             i2cEncoderLibV2(ENC_PRESET_ADDRESS) };
-
-//Class initialization with the I2C addresses
-// i2cEncoderLibV2 RGBEncoder[ENCODER_N] = { i2cEncoderLibV2(0x40),
-//                                           i2cEncoderLibV2(0x20), i2cEncoderLibV2(0x60), i2cEncoderLibV2(0x10),
-//                                           i2cEncoderLibV2(0x50), i2cEncoderLibV2(0x30), i2cEncoderLibV2(0x70),
-//                                           i2cEncoderLibV2(0x04), i2cEncoderLibV2(0x44),
-// };
-
 
 const int IntPin = A3; // INT pins, change according to your board
 uint8_t _lastEncoderInput;
 
-/////////////////// DISPLAY STUFF /////////////////////
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3D ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 ///////////////////// NETWORK STUFF ///////////////////////
 
@@ -70,7 +39,6 @@ WebsocketsClient client;
 void onMessageCallback(WebsocketsMessage message);
 void onEventsCallback(WebsocketsEvent event, String data);
 
-QRCode qrCode;
 
 ///////////////////////////// SETUP ///////////////////////////////////////
 
@@ -162,7 +130,7 @@ void setup(void) {
     display.println();
     display.display();
 
-    WiFi.onEvent(OnWiFiEvent);
+    // WiFi.onEvent(OnWiFiEvent); // TODO
 
     start_mdns_service();
 
@@ -202,111 +170,16 @@ void loop() {
     client.poll();
 }
 
-////////////////// OLED DISPLAY //////////////////////////////
 
-void displayParameter(int id, int value) {
-    if (!client.available()) {
-        return;
-    }
-    display.clearDisplay();
-    display.setTextColor(SSD1306_WHITE); // Draw white text
-    display.cp437(true);         // Use full 256 char 'Code Page 437' font
-    // display.setFont(&FreeMonoBoldOblique12pt7b);
-    display.setTextSize(2);
-    display.dim(1);
-    String label = encoderNames[id];
-    drawCentreString(label, 0);
-
-    if( encoderConfirm[id]) {
-        display.setTextSize(4);
-        drawCentreString(String(value), 22);
-        display.setTextSize(1);
-        drawCentreString("Click to confirm", 56);
-    } else {
-        display.setTextSize(4);
-        drawCentreString(String(value), 28);
-    }
-    display.display();
-
-    Serial.print(encoderNames[id]);
-    Serial.print(": ");
-    Serial.println(value);
-}
-
-void drawCentreString(const String &buf, int y)
-{
-    int16_t x1, y1, x;
-    uint16_t w, h;
-    display.getTextBounds(buf, x, y, &x1, &y1, &w, &h); //calc width of new string
-    // display.setCursor(x - w / 2, y);
-    display.setCursor((SCREEN_WIDTH - w) / 2, y);
-
-    display.println(buf);
-}
-
-void testdrawchar(void) {
-  display.clearDisplay();
-  display.setTextSize(1);      // Normal 1:1 pixel scale
-  display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.setCursor(0, 0);     // Start at top-left corner
-  display.cp437(true);         // Use full 256 char 'Code Page 437' font
-
-  // Not all the characters will fit on the display. This is normal.
-  // Library will draw what it can and the rest will be clipped.
-  for(int16_t i=0; i<256; i++) {
-    if(i == '\n') display.write(' ');
-    else          display.write(i);
-  }
-
-  display.display();
-  delay(2000);
-}
-
-void drawQrCode(const char* qrStr, const char* lines[]) {
-	uint8_t qrcodeData[qrcode_getBufferSize(3)];
-	qrcode_initText(&qrCode, qrcodeData, 3, ECC_LOW, qrStr);
- 
-  display.clearDisplay();
-  Serial.println("Updating OLED display");
-
-  // Text starting point
-  int cursor_start_y = 10;
-  int cursor_start_x = 4;
-  int font_height = 12;
-
-	// QR Code Starting Point
-  int offset_x = 62;
-  int offset_y = 3;
-
-  for (int y = 0; y < qrCode.size; y++) {
-      for (int x = 0; x < qrCode.size; x++) {
-          int newX = offset_x + (x * 2);
-          int newY = offset_y + (y * 2);
-
-          if (qrcode_getModule(&qrCode, x, y)) {
-							display.fillRect( newX, newY, 2, 2, 0);
-          }
-          else {
-							display.fillRect( newX, newY, 2, 2, 1);
-          }
-      }
-  }
-  display.setTextColor(1,0);
-  for (int i = 0; i < 4; i++) {
-    display.setCursor(cursor_start_x,cursor_start_y+font_height*i);
-    display.println(lines[i]);
-  }
-  display.display();
-}
 
 //////////////////////// WEBSOCKETS ////////////////////////////////
 
-void sendParameter(int id, int value, boolean onClick) {
+void sendParameter(String encoderName, int value, boolean immediateSend) {
     if (!client.available()) {
         return;
     }
-    if (id == ENC_BRIGHTNESS_ID || onClick) {
-        String json = "{" + encoderNames[id] + ": " + value + "}\n";
+    if (immediateSend) {
+        String json = "{" + encoderName + ": " + value + "}\n";
         Serial.println(json);
         client.send(json);
     }
@@ -371,42 +244,42 @@ void handleJson(std::string jsonString) {
 
 ///////////////////////// WIFI STUFF //////////////////////////////
 
-void OnWiFiEvent(WiFiEvent_t event)
-{
-  constexpr const char* SGN = "OnWiFiEvent()";
-  String myURL;
+// void OnWiFiEvent(WiFiEvent_t event)
+// {
+//   constexpr const char* SGN = "OnWiFiEvent()";
+//   String myURL;
 
-  switch (event) {
+//   switch (event) {
  
-    // SYSTEM_EVENT_STA_CONNECTED: ESP32 working as station connected to a WiFi network:
-    case SYSTEM_EVENT_STA_CONNECTED:
-      Serial.printf("%s: %s: SYSTEM_EVENT_STA_CONNECTED: ESP32 Connected to WiFi Network\n", timeToString().c_str(), SGN);
-      myURL = "http://" + WiFi.localIP().toString();
-      // drawQrCode(myURL.c_str(),MESSAGE_OPEN_WEBAPP);
-      break;
+//     // SYSTEM_EVENT_STA_CONNECTED: ESP32 working as station connected to a WiFi network:
+//     case SYSTEM_EVENT_STA_CONNECTED:
+//       Serial.printf("%s: %s: SYSTEM_EVENT_STA_CONNECTED: ESP32 Connected to WiFi Network\n", timeToString().c_str(), SGN);
+//       myURL = "http://" + WiFi.localIP().toString();
+//       // drawQrCode(myURL.c_str(),MESSAGE_OPEN_WEBAPP);
+//       break;
 
-    // SYSTEM_EVENT_AP_START: ESP32 soft AP started;
-    case SYSTEM_EVENT_AP_START:
-      Serial.printf("%s: %s: SYSTEM_EVENT_AP_START: ESP32 soft AP started\n", timeToString().c_str(), SGN);
-      drawQrCode("WIFI:S:Lumifera;T:nopass;P:;;",MESSAGE_JOIN_SOFT_AP);
-      break;
+//     // SYSTEM_EVENT_AP_START: ESP32 soft AP started;
+//     case SYSTEM_EVENT_AP_START:
+//       Serial.printf("%s: %s: SYSTEM_EVENT_AP_START: ESP32 soft AP started\n", timeToString().c_str(), SGN);
+//       drawQrCode("WIFI:S:Lumifera;T:nopass;P:;;",MESSAGE_JOIN_SOFT_AP);
+//       break;
 
-    // SYSTEM_EVENT_AP_STACONNECTED: station connected to the ESP32 soft AP;
-    case SYSTEM_EVENT_AP_STACONNECTED:
-      Serial.printf("%s: %s: SYSTEM_EVENT_AP_STACONNECTED: Station connected to ESP32 soft AP\n", timeToString().c_str(), SGN);
-      myURL = "http://192.168.4.1"; // hard coded; WiFi.getIP.toString doesnt work.
-      drawQrCode(myURL.c_str(),MESSAGE_OPEN_WEBAPP);
-      break;
+//     // SYSTEM_EVENT_AP_STACONNECTED: station connected to the ESP32 soft AP;
+//     case SYSTEM_EVENT_AP_STACONNECTED:
+//       Serial.printf("%s: %s: SYSTEM_EVENT_AP_STACONNECTED: Station connected to ESP32 soft AP\n", timeToString().c_str(), SGN);
+//       myURL = "http://192.168.4.1"; // hard coded; WiFi.getIP.toString doesnt work.
+//       drawQrCode(myURL.c_str(),MESSAGE_OPEN_WEBAPP);
+//       break;
 
-    // SYSTEM_EVENT_AP_STADISCONNECTED: station disconnected to the ESP32 soft AP:
-    case SYSTEM_EVENT_AP_STADISCONNECTED:
-      Serial.printf("%s: %s: SYSTEM_EVENT_AP_STADISCONNECTED: Station disconnected from ESP32 soft AP\n", timeToString().c_str(), SGN);
-      drawQrCode("WIFI:S:Lumifera;T:nopass;P:;;",MESSAGE_JOIN_SOFT_AP);
-      break;
+//     // SYSTEM_EVENT_AP_STADISCONNECTED: station disconnected to the ESP32 soft AP:
+//     case SYSTEM_EVENT_AP_STADISCONNECTED:
+//       Serial.printf("%s: %s: SYSTEM_EVENT_AP_STADISCONNECTED: Station disconnected from ESP32 soft AP\n", timeToString().c_str(), SGN);
+//       drawQrCode("WIFI:S:Lumifera;T:nopass;P:;;",MESSAGE_JOIN_SOFT_AP);
+//       break;
 
-    default: break;
-  }
-}
+//     default: break;
+//   }
+// }
 
 ///////////////////////////// MISC UTIL ///////////////////////////////////
 
@@ -428,29 +301,6 @@ std::string timeToString()
 
 /////////////////////////////////////// ENCODERS ///////////////////////////
 
-void setPreset(int presetIndex){
-     RGBEncoder[ENC_PRESET_ID].writeCounter((int32_t)presetIndex);   
-}
-
-void setBrightness(int brightness){
-     RGBEncoder[ENC_BRIGHTNESS_ID].writeCounter((int32_t)brightness);   
-}
 
 
-void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event) {
-    _lastEncoderInput = obj->id; // not really the right place to put it
-    if (client.available()) {
-        if (event == ROTATE) {
-            obj->writeRGBCode(0x00FF00);
-        }
-        if (event == CLICK) {
-            obj->writeRGBCode(0x0000FF);
-        }
-        if (event == LIMIT) {
-            obj->writeRGBCode(0xFF0000);
-        }
-    }
-    else {
-        obj->writeRGBCode(0x4c00b0); // purple
-    }
-}
+

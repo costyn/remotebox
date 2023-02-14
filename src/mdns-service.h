@@ -1,3 +1,6 @@
+#ifndef MDNS_SERVICE_H
+#define MDNS_SERVICE_H
+
 #include <Arduino.h>
 #include <ESPmDNS.h>
 
@@ -11,3 +14,5 @@ void start_mdns_service()
     }
 
 }
+
+#endif
