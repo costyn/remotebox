@@ -17,6 +17,7 @@ void oledSetup() {
     display.cp437(true);         // Use full 256 char 'Code Page 437' font
     // display.setFont(&FreeMonoBoldOblique12pt7b);
     display.setTextSize(1);
+    // display.startscrolldiagleft(0x00, 0xFF);
 }
 
 
@@ -84,6 +85,7 @@ void drawQrCode(const char* qrStr, const char* lines[]) {
 	qrcode_initText(&qrCode, qrcodeData, 3, ECC_LOW, qrStr);
  
   display.clearDisplay();
+  display.dim(0);
   Serial.println("Updating OLED display");
 
   // Text starting point
@@ -113,5 +115,19 @@ void drawQrCode(const char* qrStr, const char* lines[]) {
     display.setCursor(cursor_start_x,cursor_start_y+font_height*i);
     display.println(lines[i]);
   }
+  display.display();
+}
+
+
+void printToSerialAndDisplay(String line1, String line2) {
+    // Print to Serial
+    Serial.println(line1);
+    Serial.println(line1);
+
+  // Print to display
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println(line1);
+  display.println();
   display.display();
 }

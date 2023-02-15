@@ -15,7 +15,7 @@
 #define ENC_BRIGHTNESS_MIN 0
 #define ENC_BRIGHTNESS_MAX 254
 #define ENC_BRIGHTNESS_STEP 5
-#define ENC_BRIGHTNESS_DEFAULT 80
+#define ENC_BRIGHTNESS_DEFAULT 150
 #define ENC_BRIGHTNESS_CONFIRM false
 
 // Preset
@@ -29,10 +29,10 @@
 #define ENC_PRESET_CONFIRM true
 
 
-const String encoderNames[NUM_ENCODERS] = { ENC_BRIGHTNESS_NAME, 
-                                            ENC_PRESET_NAME };
-const bool encoderConfirm[NUM_ENCODERS] = { ENC_BRIGHTNESS_CONFIRM, 
-                                            ENC_PRESET_CONFIRM };
+const String encoderNames[NUM_ENCODERS] PROGMEM = { ENC_BRIGHTNESS_NAME, 
+                                                    ENC_PRESET_NAME };
+const bool encoderConfirm[NUM_ENCODERS] PROGMEM = { ENC_BRIGHTNESS_CONFIRM, 
+                                                    ENC_PRESET_CONFIRM };
 
 //Class initialization with the I2C addresses
 // i2cEncoderLibV2 RGBEncoder[ENCODER_N] = { i2cEncoderLibV2(0x40),

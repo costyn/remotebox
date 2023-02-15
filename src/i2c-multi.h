@@ -25,7 +25,7 @@ void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event);
 
 #define RB_WIFI_AP "RemoteBox Setup"
 
-// const char* PROGMEM MESSAGE_CONFIGURE_WIFI[4] = { "Scan QR", "to setup", "WiFi", "" };
+static const char* PROGMEM MESSAGE_CONFIGURE_WIFI[4] = { "Scan QR", "to setup", "WiFi", "" };
 // const char* PROGMEM MESSAGE_OPEN_WEBAPP[4] = { "Scan QR", "to open", "Lumifera", "webapp" };
 // const char* PROGMEM MESSAGE_JOIN_FAILED[4] = { "Joining", "configured", "WiFi failed", "" };
 // const char* PROGMEM MESSAGE_JOIN_SOFT_AP[4] =  { "Scan QR", "to join", "Lumifera", "WiFi AP" };
