@@ -1,14 +1,28 @@
 #include "my_globals.h"
 #include "web-sockets.h"
 
+void setupWebsockets(String wsUrl) {
+    // Generate our clientId so we can ignore JSON the server echo's back
+    clientId = random(999999);
+    url = wsUrl;
+
+    client.onMessage(onMessageCallback);
+    client.onEvent(onEventsCallback);
+    client.connect(url);
+}
+
 void sendParameter(String encoderName, int value, boolean immediateSend) {
     if (!client.available()) {
         return;
     }
     if (immediateSend) {
-        String json = "{" + encoderName + ": " + value + "}\n";
-        Serial.println(json);
-        client.send(json);
+        DynamicJsonDocument object(1024);
+        object[encoderName] = value;
+        object["clientId"] = clientId;
+        String jsonString;
+        serializeJsonPretty(object, jsonString);
+        Serial.println(jsonString);
+        client.send(jsonString);
     }
 }
 
@@ -39,7 +53,7 @@ void onEventsCallback(WebsocketsEvent event, String data) {
         // display.println();
         // display.display();
         delay(1000);
-        client.connect(_url);
+        client.connect(url);
     }
     else if (event == WebsocketsEvent::GotPing) {
         Serial.println("Got a Ping!");
@@ -52,21 +66,25 @@ void onEventsCallback(WebsocketsEvent event, String data) {
 void handleJson(std::string jsonString) {
     constexpr const char* SGN = "handleJson()";
 
-  DynamicJsonDocument doc(1024);
-  DeserializationError error = deserializeJson(doc, jsonString);
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, jsonString);
 
-  if (error) {
-      // Serial.printf("%s: %s: deserializeJson() failed\n", timeToString().c_str(), SGN);
-      Serial.printf("%s: %s: deserializeJson() failed\n", "", SGN);
-  }
+    if (error) {
+        // Serial.printf("%s: %s: deserializeJson() failed\n", timeToString().c_str(), SGN);
+        Serial.printf("%s: %s: deserializeJson() failed\n", "", SGN);
+    }
 
-  if (doc["preset"]) {
-    int presetIndex = doc["preset"];
-    setPreset(presetIndex);
-  }
+    uint16_t receivedClientId = doc["clientId"];
+    if (receivedClientId != clientId) {
 
-  if (doc["brightness"]) {
-    int brightness = doc["brightness"];
-    setBrightness(brightness);
-  }
+        if (doc["preset"]) {
+            int presetIndex = doc["preset"];
+            setPreset(presetIndex);
+        }
+
+        if (doc["brightness"]) {
+            int brightness = doc["brightness"];
+            setBrightness(brightness);
+        }
+    }
 }

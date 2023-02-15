@@ -10,7 +10,11 @@ using namespace websockets;
 void onMessageCallback(WebsocketsMessage message);
 void onEventsCallback(WebsocketsEvent event, String data);
 
+void setupWebsockets(String url);
 void handleJson(std::string jsonString);
+
+static uint16_t clientId;
+static String url;
 
 // Externs
 void setPreset(int presetIndex);

@@ -12,13 +12,10 @@
 #include "web-sockets.h"
 
 /* ///////// TODO
-
- WifiManager
  TaskScheduler
  Reconnect websocket on disconnect
  Future Feature:
     * Send commands over IR?
-
 */
 
 ///////////////////////////// SETUP ///////////////////////////////////////
@@ -35,14 +32,11 @@ void setup(void) {
     
     configureWifi();
 
-    _url = getLumiUrl();
-
-    Serial.println(_url);
-
-    if (_url != "") {
-        client.onMessage(onMessageCallback);
-        client.onEvent(onEventsCallback);
-        client.connect(_url);
+    String url = getLumiUrl();
+    Serial.println(url);
+    
+    if (url != "") {
+        setupWebsockets(url);
     }
     else {
         Serial.println("URL was empty :(");
