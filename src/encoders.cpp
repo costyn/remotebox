@@ -60,6 +60,20 @@ void encoderSetup() {
     RGBEncoder[ENC_PRESET_ID].writeStep((int32_t)ENC_PRESET_STEP);
 }
 
+void readEncoders() {
+    uint8_t enc_cnt;
+
+    if (digitalRead(IntPin) == LOW) {
+        //Interrupt from the encoders, start to scan the encoder matrix
+        for (enc_cnt = 0; enc_cnt < NUM_ENCODERS; enc_cnt++) {
+            if (digitalRead(IntPin) == HIGH) { //If the interrupt pin return high, exit from the encoder scan
+                break;
+            }
+            RGBEncoder[enc_cnt].updateStatus();
+        }
+    }
+}
+
 
 void encoder_rotated(i2cEncoderLibV2* obj) {
     encoderColorFeedback(obj, ROTATE);

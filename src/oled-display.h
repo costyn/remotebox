@@ -6,7 +6,6 @@
 #include <Adafruit_SSD1306.h>
 #include <qrcode.h>
 #include <ArduinoWebsockets.h>
-// #include "encoders.h"
 
 /*
     For the STEMMA QT cables, we follow the Qwiic convention:

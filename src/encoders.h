@@ -48,6 +48,7 @@ static i2cEncoderLibV2 RGBEncoder[NUM_ENCODERS] = { i2cEncoderLibV2(ENC_BRIGHTNE
 const int IntPin = A3; // INT pins, change according to your board
 
 void encoderSetup();
+void readEncoders();
 
 void encoder_rotated(i2cEncoderLibV2* obj);
 void encoder_click(i2cEncoderLibV2* obj);
