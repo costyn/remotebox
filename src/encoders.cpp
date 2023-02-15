@@ -1,3 +1,4 @@
+#include "my_globals.h"
 #include "encoders.h"
 
 /*In this example there are 9 I2C Encoder V2 boards with the RGB LED connected in a matrix 3x3

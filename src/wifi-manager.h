@@ -6,5 +6,4 @@
 
 void configureWifi();
 
-
 #endif

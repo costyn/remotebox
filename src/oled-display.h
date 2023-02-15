@@ -47,7 +47,6 @@ void oledSetup();
 void drawCentreString(const String& buf, int y);
 void testdrawchar(void);
 void displayParameter(String encoderName, int value, boolean confirmWithClick);
-void drawQrCode(const char* qrStr, const char* lines[]);
 
 ////////////// Global Variable /////////////////////
 

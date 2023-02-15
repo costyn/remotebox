@@ -6,6 +6,12 @@
 #include <ArduinoWebsockets.h>
 #include "i2c-multi.h"
 
+typedef enum {
+    ROTATE,
+    LIMIT,
+    CLICK
+} EncoderEvent;
+
 #define NUM_ENCODERS 2 // Number of encoders
 
 // Brightness
@@ -29,10 +35,10 @@
 #define ENC_PRESET_CONFIRM true
 
 
-const String encoderNames[NUM_ENCODERS] PROGMEM = { ENC_BRIGHTNESS_NAME, 
-                                                    ENC_PRESET_NAME };
-const bool encoderConfirm[NUM_ENCODERS] PROGMEM = { ENC_BRIGHTNESS_CONFIRM, 
-                                                    ENC_PRESET_CONFIRM };
+static const String encoderNames[NUM_ENCODERS] PROGMEM = { ENC_BRIGHTNESS_NAME, 
+                                                            ENC_PRESET_NAME };
+static const bool encoderConfirm[NUM_ENCODERS] PROGMEM = { ENC_BRIGHTNESS_CONFIRM, 
+                                                            ENC_PRESET_CONFIRM };
 
 //Class initialization with the I2C addresses
 // i2cEncoderLibV2 RGBEncoder[ENCODER_N] = { i2cEncoderLibV2(0x40),
@@ -56,8 +62,10 @@ void encoder_thresholds(i2cEncoderLibV2* obj);
 void encoder_fade(i2cEncoderLibV2* obj);
 void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event);
 
+void setPreset(int presetIndex);
+void setBrightness(int brightness);
+
 ///////////// EXTERNS /////////////////////
-void displayParameter(String encoderName, int value, boolean confirmWithClick);
 extern websockets::WebsocketsClient client;
 
 #endif

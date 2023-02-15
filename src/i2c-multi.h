@@ -2,26 +2,12 @@
 #define I2C_MULTI_H
 
 #include <Arduino.h>
-#include <i2cEncoderLibV2.h>
 
-// void start_mdns_service();
-
-typedef enum {
-    ROTATE,
-    LIMIT,
-    CLICK
-} EncoderEvent;
-
-void testdrawchar(void);
-void drawCentreString(const String &buf, int y);
-void sendParameter(String encoderName, int value, boolean immediateSend);
 std::string timeToString();
-void handleJson(std::string jsonString);
-void setPreset(int presetIndex);
-void setBrightness(int brightness);
+
+void displayParameter(String encoderName, int value, boolean confirmWithClick);
+void sendParameter(String encoderName, int value, boolean immediateSend);
 void drawQrCode(const char* qrStr, const char* lines[]);
-void OnWiFiEvent(WiFiEvent_t event);
-void encoderColorFeedback(i2cEncoderLibV2* obj, EncoderEvent event);
 
 #define RB_WIFI_AP "RemoteBox Setup"
 
